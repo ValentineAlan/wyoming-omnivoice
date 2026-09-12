@@ -58,6 +58,7 @@ The endpoint has no web interface.
 
 The proposed catalog app exposes CPU/NVIDIA selection, language, generation
 steps, reference voice, TCP port, storage, UID/GID, and resource limits. Its
+default published port is `30490` (internal Wyoming port `10200`), and its
 default storage is an automatically provisioned ixVolume. Host-path storage is
 also supported; automatic permissions for host paths are opt-in.
 
@@ -67,7 +68,8 @@ only after the model has loaded and answers Wyoming discovery requests.
 
 In Home Assistant, open **Settings → Devices & services → Add integration →
 Wyoming Protocol**, then enter the TrueNAS host address and the published TCP
-port (default `10200`). Select OmniVoice as the text-to-speech provider in your
+port (`10200` in the example Compose file, `30490` in the proposed catalog app).
+Select OmniVoice as the text-to-speech provider in your
 voice assistant configuration. Language selection in the app determines the
 single advertised voice; per-request voice/language switching is not implemented.
 
