@@ -29,7 +29,7 @@ def pop_piece(text, target, final=False):
     text = re.sub(r"\s+", " ", text).lstrip()
     if not text:
         return "", ""
-    sentence = re.search(r'[.!?](?:["\')\]]*)(?=\s|$)', text[:target + 1])
+    sentence = re.search(r'[.!?](?:["\')\]]*)(?=\s|$)', text[:target])
     if sentence:
         cut = sentence.end()
     elif len(text) <= target:

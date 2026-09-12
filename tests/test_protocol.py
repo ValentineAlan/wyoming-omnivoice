@@ -13,7 +13,7 @@ from wyoming_omnivoice import Engine, Handler, MAX_TEXT, parse_args, pop_piece, 
 
 class TextTests(unittest.TestCase):
     def test_long_words_and_final_flush_are_bounded(self):
-        for text in ["x" * 800, "Hello, this is a sentence. " * 100, "one two three"]:
+        for text in ["x" * 800, "x" * 35 + ".", "Hello, this is a sentence. " * 100, "one two three"]:
             rest, pieces = text, []
             while rest:
                 piece, rest = pop_piece(rest, 35, final=True)
