@@ -1,0 +1,12 @@
+Wyoming OmniVoice
+Copyright 2026 Alan Valentine
+
+This project provides an independently maintained Wyoming wrapper for OmniVoice.
+OmniVoice is developed by k2-fsa and distributed under Apache-2.0:
+https://github.com/k2-fsa/OmniVoice
+Wyoming is developed by the Open Home Foundation and distributed under MIT:
+https://github.com/OHF-Voice/wyoming
+PyTorch, NVIDIA CUDA components and other dependencies retain their own licenses.
+The container installs upstream dependencies; model weights are downloaded at runtime.
+Model licenses and notices are supplied by their respective repositories.
+This project is not affiliated with or endorsed by TrueNAS, k2-fsa or NVIDIA.

@@ -1,0 +1,6 @@
+*
+!Dockerfile
+!requirements.lock
+!p40-constraints.txt
+!wyoming_omnivoice.py
+!healthcheck.py

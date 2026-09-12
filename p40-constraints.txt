@@ -1,0 +1,3 @@
+torch==2.8.0+cu126
+torchaudio==2.8.0+cu126
+wyoming==1.10.0
