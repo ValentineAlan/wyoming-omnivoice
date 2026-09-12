@@ -84,8 +84,8 @@ docker compose -f compose.yaml -f compose.nvidia.yaml up -d
 docker compose logs --tail=50 wyoming-omnivoice
 ```
 
-The Compose files reference the versioned GHCR image. During release preparation,
-build it locally if that tag has not been published yet:
+The Compose files reference the public, versioned GHCR image. To build that
+image locally instead:
 
 ```sh
 docker build -t ghcr.io/valentinealan/wyoming-omnivoice:1.0.0 .
@@ -105,7 +105,7 @@ minimum latency.
 | `OMNIVOICE_LANGUAGE_CODE` | `en` | Matching BCP 47 code advertised to Wyoming |
 | `OMNIVOICE_REF_AUDIO` | empty | Reference WAV path inside the container |
 | `OMNIVOICE_REF_TEXT` | empty | Accurate transcript of the reference WAV |
-| `OMNIVOICE_INSTRUCT` | empty | Optional voice-design instruction |
+| `OMNIVOICE_INSTRUCT` | empty | Supported voice tags, e.g. `male, british accent, low pitch`; not free-form prose |
 | `OMNIVOICE_NUM_STEP` | `32` | Generation steps, 1–100 |
 | `OMNIVOICE_GUIDANCE_SCALE` | `2.0` | Guidance, 0–10 |
 | `OMNIVOICE_SPEED` | `1.0` | Speech speed, 0.25–4 |
@@ -120,6 +120,13 @@ For a reference voice, place a WAV at `data/voices/reference.wav`, set
 settings must be provided together. Reference recordings and transcripts stay in
 your installation and are not included in the image or this repository. Use
 recordings you have permission to use.
+
+Voice-design tags must come from OmniVoice's supported set. Use English tags
+separated by comma and space, or Chinese tags separated by a full-width comma;
+do not mix the two. The TrueNAS field lists and validates the supported tags.
+For example, `male, british accent, low pitch` is valid, while a sentence such as
+“a calm, clear speaking voice” is not. The catalogue also derives CPU thread
+counts from the CPU resource limit, avoiding excessive thread contention.
 
 Eight steps and guidance `1.2` were used for the original Tesla P40 deployment.
 Lower step counts can improve latency at the expense of quality. Splitting
