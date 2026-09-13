@@ -42,8 +42,14 @@ The proposed form supplies fixed controls, help text, preset values and validate
 custom overrides. Cache locations are fixed in the image. A generic Custom App
 installation cannot display this tailored form before catalog inclusion.
 
-The release container is built and published by the repository's container workflow.
-Its workflow result is the record of the final Dockerfile build. Catalog approval
-and the maintainer CDN icon upload remain pending independently of local tests.
+The public candidate image was pulled anonymously from GHCR and checked on
+TrueNAS: dependency consistency, UID 568, Wyoming readiness, CPU synthesis and
+normal/streamed RTX 3090 synthesis all passed. Recognized speech matched the test
+requests. The final versioned build also passed:
+https://github.com/ValentineAlan/wyoming-omnivoice/actions/runs/34781289126
+
+Published image: `ghcr.io/valentinealan/wyoming-omnivoice:1.1.0`.
+Catalog approval and the maintainer CDN icon upload remain pending independently
+of these checks.
 
 Submission: https://github.com/truenas/apps/pull/5793
