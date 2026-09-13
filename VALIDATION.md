@@ -19,10 +19,10 @@ compatibility of this runtime.
 - The example was generated without reference audio; no personal recordings are
   included. Its recognized words matched the bundled transcript.
 
-## Personal deployment benchmark
+## RTX 3090 benchmark
 
-The same three sentences were repeated three times with a personal reference
-voice on RTX 3090 and stock NVIDIA driver 580.173.02. The personal configuration
+The same three sentences were repeated three times with a reference
+voice on RTX 3090 and stock NVIDIA driver 580.173.02. The benchmark configuration
 used 12 generation steps and short text chunks. Warm first audio improved from
 about 0.50–0.69 seconds to 0.21–0.25 seconds with FlashInfer and CUDA graphs. The
 first request after restart remained slower (about 2.9 seconds).
@@ -30,7 +30,6 @@ first request after restart remained slower (about 2.9 seconds).
 These measurements cover TTS server latency, not an entire Home Assistant request.
 They are a small functional benchmark, not a claim for every voice or GPU.
 Fourteen additional varied requests completed with a four-shape graph cache.
-The old image and configuration were retained for rollback.
 
 ## TrueNAS catalog
 

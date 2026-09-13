@@ -84,7 +84,7 @@ therefore offers **Example** or a typed **Custom voice name**. Missing, empty, o
 ambiguous pairs produce a clear startup error. No personal recordings are bundled.
 Use recordings you have permission to use.
 
-Advanced manual reference path/transcript controls remain for existing setups.
+Advanced controls also accept a manual reference path and transcript.
 A named voice takes precedence. Voice design can generate speech without a
 reference: use supported tags such as `female, british accent, moderate pitch`,
 not free-form instructions. See [upstream guidance](https://github.com/k2-fsa/OmniVoice).
