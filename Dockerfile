@@ -8,7 +8,7 @@ COPY requirements.lock /opt/requirements.lock
 ENV PIP_CONSTRAINT=/opt/requirements.lock
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install torch==2.14.0+cu130 torchaudio==2.11.0+cu130 \
-       --index-url https://download.pytorch.org/whl/cu130
+       --index-url https://download.pytorch.org/whl/cu130 --extra-index-url https://pypi.org/simple
 RUN python -m pip install \
     'omnivoice @ git+https://github.com/k2-fsa/OmniVoice.git@08be0b4ccbac3e13e374e86fbfead4b4cac343e2' \
     transformers==5.17.0 torchcodec==0.16.0 wyoming==1.10.2 \
