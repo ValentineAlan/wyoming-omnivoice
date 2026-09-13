@@ -15,6 +15,7 @@
 {% do c1.environment.add_env("OMP_NUM_THREADS", values.resources.limits.cpus) %}
 {% do c1.environment.add_env("MKL_NUM_THREADS", values.resources.limits.cpus) %}
 {% do c1.environment.add_env("OMNIVOICE_DEVICE", values.omnivoice.device) %}
+{% do c1.environment.add_env("OMNIVOICE_LOG_LEVEL", values.omnivoice.log_level) %}
 {% do c1.environment.add_env("OMNIVOICE_MODEL", values.omnivoice.model) %}
 {% do c1.environment.add_env("OMNIVOICE_LANGUAGE", values.omnivoice.language) %}
 {% do c1.environment.add_env("OMNIVOICE_LANGUAGE_CODE", values.omnivoice.language_code) %}

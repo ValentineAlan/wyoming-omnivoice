@@ -113,6 +113,7 @@ minimum latency.
 | `OMNIVOICE_FULL_TEXT_CHARS` | `100` | Complete-request piece limit, 20–500 |
 | `OMNIVOICE_FIRST_STREAM_CHARS` | `100` | First streamed piece limit, 20–500 |
 | `OMNIVOICE_STREAM_CHARS` | `100` | Subsequent streamed piece limit, 20–500 |
+| `OMNIVOICE_LOG_LEVEL` | `INFO` | Wrapper threshold: DEBUG, INFO, WARNING, ERROR, CRITICAL (case-insensitive). TrueNAS UI defaults to WARNING. Also available as `--log-level`; library stdout/progress output is separate. |
 | `OMNIVOICE_INTER_CHUNK_SILENCE` | `0.15` | Silence between pieces in seconds, 0–2 |
 
 For a reference voice, place a WAV at `data/voices/reference.wav`, set

@@ -16,6 +16,24 @@ questions:
   label: ''
   schema:
     attrs:
+    - variable: log_level
+      label: Log Level
+      description: 'Wrapper logging threshold. WARNING hides routine activity and keeps warnings and errors. INFO shows startup progress; DEBUG enables diagnostic logging. ERROR and CRITICAL show only more severe messages. Default: WARNING. Does not control direct output from third-party libraries.'
+      schema:
+        type: string
+        default: WARNING
+        required: true
+        enum:
+        - value: DEBUG
+          description: Debug
+        - value: INFO
+          description: Information
+        - value: WARNING
+          description: Warning
+        - value: ERROR
+          description: Error
+        - value: CRITICAL
+          description: Critical
     - label: Inference Device
       schema:
         default: cpu

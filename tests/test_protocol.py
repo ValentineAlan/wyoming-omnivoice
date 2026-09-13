@@ -1,17 +1,27 @@
 import asyncio
 import io
 import json
+import os
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stderr
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from wyoming.event import Event
 from wyoming_omnivoice import Engine, Handler, MAX_TEXT, parse_args, pop_piece, read_event
 
 
 class TextTests(unittest.TestCase):
+    def test_log_level_configuration(self):
+        with patch.dict(os.environ, {"OMNIVOICE_LOG_LEVEL": "warning"}):
+            self.assertEqual(parse_args([]).log_level, "WARNING")
+            self.assertEqual(parse_args(["--log-level", "debug"]).log_level, "DEBUG")
+        with patch.dict(os.environ, {"OMNIVOICE_LOG_LEVEL": "invalid"}):
+            with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                parse_args([])
+
     def test_long_words_and_final_flush_are_bounded(self):
         for text in ["x" * 800, "x" * 35 + ".", "Hello, this is a sentence. " * 100, "one two three"]:
             rest, pieces = text, []

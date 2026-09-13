@@ -235,6 +235,14 @@ class Handler(AsyncEventHandler):
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
+    def log_level(value):
+        value = value.upper()
+        if value not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+            raise argparse.ArgumentTypeError("Expected DEBUG, INFO, WARNING, ERROR, or CRITICAL")
+        return value
+    p.add_argument("--log-level", type=log_level,
+                   default=os.environ.get("OMNIVOICE_LOG_LEVEL", "INFO"),
+                   help="Logging threshold (default: OMNIVOICE_LOG_LEVEL or INFO)")
     p.add_argument("--version", action="version", version=VERSION)
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=10200)
@@ -275,7 +283,7 @@ def parse_args(argv=None):
 
 async def main():
     args = parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(level=args.log_level, format="%(asctime)s %(levelname)s %(message)s")
     engine = Engine(args)
     server = AsyncTcpServer(args.host, args.port)
     active = set()

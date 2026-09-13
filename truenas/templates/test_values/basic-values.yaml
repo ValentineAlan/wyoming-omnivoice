@@ -1,4 +1,5 @@
 omnivoice:
+  log_level: WARNING
   device: cpu
   language: English
   language_code: en
