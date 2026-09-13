@@ -1,0 +1,6 @@
+torch==2.14.0+cu130
+torchaudio==2.11.0+cu130
+torchcodec==0.16.0
+transformers==5.17.0
+flashinfer-python==0.6.18.post1
+wyoming==1.10.2

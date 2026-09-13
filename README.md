@@ -2,167 +2,143 @@
 
 ![Wyoming OmniVoice](assets/icon.svg)
 
-Run [k2-fsa OmniVoice](https://github.com/k2-fsa/OmniVoice) as a local
-[Wyoming](https://github.com/OHF-Voice/wyoming) text-to-speech service for Home
-Assistant. Includes a standalone Docker image and a proposed TrueNAS Community
-app definition. **Catalog inclusion is pending review; this is an independent
-community project.**
+Run [k2-fsa OmniVoice](https://github.com/k2-fsa/OmniVoice) as a local Wyoming TTS
+service for Home Assistant. Supports complete and streamed text requests, named
+reference voices, CPU inference, and optional NVIDIA acceleration.
+**TrueNAS catalog inclusion is pending review; this is an independent community project.**
 
-- Normal synthesis and Wyoming streamed text input.
-- One configured voice, with optional reference audio and transcript.
-- CPU or NVIDIA GPU inference; CUDA 12.6 dependencies retained for Tesla P40.
-- Non-root container, persistent model cache, and a readiness health check.
+## Requirements and versions
 
-Streaming generates successive pieces of text and sends PCM as each piece is
-ready. It does not stream audio tokens directly from the model. Output is mono
-16-bit PCM at the model's sampling rate (24 kHz for the tested model).
+Use an x86-64 Linux Docker host. Allow at least 8 GB system memory and 20 GB app
+storage for the image and model cache. CPU inference uses float32; NVIDIA uses
+float16. GPU mode requires a supported Turing-or-newer GPU, including RTX 3090,
+and a CUDA 13.0-compatible NVIDIA driver (R580 or newer).
 
-## Requirements
-
-Use an x86-64 Linux Docker host. The TrueNAS catalog definition targets the
-Docker-based Apps platform, with minimum version 24.10.2.2. Plan for at least
-8 GB available system memory and 20 GB free app storage initially; actual usage
-depends on model caches, image retention, and workload. CPU inference is slower
-than GPU inference. Only one inference job runs at a time.
-
-NVIDIA mode requires a compatible host NVIDIA driver and container GPU support.
-On TrueNAS, enable the NVIDIA driver and select the GPU under app resources.
-Pascal GPUs such as Tesla P40 require the pinned PyTorch CUDA **12.6** wheel;
-switching to a CUDA 12.8 wheel is not a compatible upgrade for this image.
-
-| Component | Release dependency |
+| Component | Version |
 | --- | --- |
 | OmniVoice | 0.2.1, commit `08be0b4ccbac3e13e374e86fbfead4b4cac343e2` |
-| PyTorch / TorchAudio | 2.8.0+cu126 |
-| CUDA runtime base | 12.6.3 / Ubuntu 22.04 |
-| Wyoming | 1.10.0 |
-| Transformers | 5.17.0 |
+| PyTorch | 2.14.0+cu130 |
+| TorchAudio | 2.11.0+cu130 |
+| TorchCodec | 0.16.0 |
+| FlashInfer | 0.6.18.post1 with CUDA 13.0 kernel cache |
+| Transformers / Wyoming | 5.17.0 / 1.10.2 |
+| Python / base OS | 3.12 / Debian Bookworm |
 
-Python packages are pinned in `requirements.lock`; the model is downloaded at
-runtime from `k2-fsa/OmniVoice`. Model repository contents and operating-system
-security updates are not frozen by the Python lock file.
+TorchAudio 2.11 uses PyTorch's stable ABI and supports PyTorch 2.11 and later;
+the version numbers need not match. Key packages are listed in `constraints.txt`;
+builds use `requirements.lock` to pin the tested environment. Model weights download from
+`k2-fsa/OmniVoice` on first startup.
 
-## TrueNAS
+## Install
 
-Until catalog approval, use **Apps → Discover Apps → Custom App → Install via
-YAML**. Choose an unused app name and paste a Compose configuration based on
-`compose.yaml`. Replace `./data` with an absolute dataset path, for example
-`/mnt/POOL/appdata/wyoming-omnivoice`. Create that dataset first and grant UID/GID
-568 read/write access using TrueNAS dataset permissions. Keep your existing app
-on its current port until the new installation is tested.
-
-For NVIDIA, merge the service's `environment` and `deploy` settings from
-`compose.nvidia.yaml` into the same service. Select the intended GPU; on hosts
-with multiple GPUs, replace `count: 1` with `device_ids: ["GPU-YOUR-UUID"]`.
-The endpoint has no web interface.
-
-The proposed catalog app exposes CPU/NVIDIA selection, language, generation
-steps, reference voice, TCP port, storage, UID/GID, and resource limits. Its
-default published port is `30490` (internal Wyoming port `10200`), and its
-default storage is an automatically provisioned ixVolume. Host-path storage is
-also supported; automatic permissions for host paths are opt-in.
-
-On the first launch, model weights download to `/data/cache`. Startup can take
-several minutes and requires internet access. The container becomes healthy
-only after the model has loaded and answers Wyoming discovery requests.
-
-In Home Assistant, open **Settings → Devices & services → Add integration →
-Wyoming Protocol**, then enter the TrueNAS host address and the published TCP
-port (`10200` in the example Compose file, `30490` in the proposed catalog app).
-Select OmniVoice as the text-to-speech provider in your
-voice assistant configuration. Language selection in the app determines the
-single advertised voice; per-request voice/language switching is not implemented.
-
-## Docker Compose
-
-Create a writable `data` directory for UID/GID 568, then:
+Create a persistent data directory writable by UID/GID 568:
 
 ```sh
 docker compose up -d
-# Or NVIDIA:
+# NVIDIA GPU:
 docker compose -f compose.yaml -f compose.nvidia.yaml up -d
-docker compose logs --tail=50 wyoming-omnivoice
 ```
 
-The Compose files reference the public, versioned GHCR image. To build that
-image locally instead:
+Until catalog approval, use TrueNAS **Apps → Discover Apps → Custom App → Install
+via YAML**, based on `compose.yaml`. Replace `./data` with an absolute dataset path.
+For NVIDIA, merge in the environment and GPU reservation from `compose.nvidia.yaml`.
+Select the intended GPU UUID on systems with multiple cards.
 
-```sh
-docker build -t ghcr.io/valentinealan/wyoming-omnivoice:1.0.0 .
+The proposed catalog form provides fixed labels, dropdown presets, help text,
+validated custom values, storage permissions, and GPU selection. It has no editable
+environment-variable-name list. Defaults are 4 CPUs and 8192 MB RAM. CPU thread counts
+follow the CPU limit. Host-path automatic permissions are opt-in. The image runs as
+a non-root user and has a Wyoming readiness health check.
+
+First startup can take several minutes while weights download into `/data/cache`.
+In Home Assistant add **Wyoming Protocol**, using the host address and published
+port: `10200` in Compose or `30490` in the catalog definition. Then select OmniVoice
+as TTS in your voice assistant pipeline. The app has no browser UI; keep its
+unauthenticated Wyoming endpoint on a trusted network.
+
+Audio is mono 16-bit PCM at 24 kHz with the default model. One generation runs at a
+time. Streaming generates successive text pieces and sends their PCM when ready;
+it does not stream audio tokens directly from the model.
+
+## Choose a voice
+
+A fresh install uses **example**, a bundled synthetic voice generated without a
+reference recording. When first selected, the app copies `example_reference.wav`
+and `example_reference.txt` to `/data/voices`, without overwriting existing files.
+The example is reference audio only; model weights still download on first use.
+
+Add a pair to that same voices folder:
+
+```text
+/data/voices/david_reference.wav
+/data/voices/david_reference.txt
 ```
 
-## Configuration
+Choose **Custom voice name** and enter `david`. In the Generic Custom App form use
+`OMNIVOICE_VOICE=david`. The UTF-8 TXT file contains the exact words spoken in the WAV.
+Plain names such as `jess.wav` and `jess.txt` also work with `jess`. Names are
+case-sensitive. Restart after changing the selected voice or transcript.
 
-Add environment variables to the container, or run the script with `--help` for
-equivalent command-line options. Defaults favor predictable quality rather than
-minimum latency.
+TrueNAS cannot scan a mounted folder to populate its installation form. The catalog
+therefore offers **Example** or a typed **Custom voice name**. Missing, empty, or
+ambiguous pairs produce a clear startup error. No personal recordings are bundled.
+Use recordings you have permission to use.
 
-| Variable | Default | Purpose |
+Advanced manual reference path/transcript controls remain for existing setups.
+A named voice takes precedence. Voice design can generate speech without a
+reference: use supported tags such as `female, british accent, moderate pitch`,
+not free-form instructions. See [upstream guidance](https://github.com/k2-fsa/OmniVoice).
+One selected voice and language are advertised per instance; per-request selection
+is not implemented.
+
+## Settings
+
+TrueNAS shows presets with a **Custom value** option where useful. These variable
+names are for Docker and Generic Custom Apps; catalog users edit fixed controls.
+Run the wrapper with `--help` for command-line equivalents.
+
+| Variable | Default | Meaning |
 | --- | --- | --- |
-| `OMNIVOICE_DEVICE` | `cpu` | `cpu` or `cuda` |
-| `OMNIVOICE_MODEL` | `k2-fsa/OmniVoice` | Hugging Face model ID or local model directory |
-| `OMNIVOICE_LANGUAGE` | `English` | Language passed to OmniVoice |
-| `OMNIVOICE_LANGUAGE_CODE` | `en` | Matching BCP 47 code advertised to Wyoming |
-| `OMNIVOICE_REF_AUDIO` | empty | Reference WAV path inside the container |
-| `OMNIVOICE_REF_TEXT` | empty | Accurate transcript of the reference WAV |
-| `OMNIVOICE_INSTRUCT` | empty | Supported voice tags, e.g. `male, british accent, low pitch`; not free-form prose |
-| `OMNIVOICE_NUM_STEP` | `32` | Generation steps, 1–100 |
-| `OMNIVOICE_GUIDANCE_SCALE` | `2.0` | Guidance, 0–10 |
-| `OMNIVOICE_SPEED` | `1.0` | Speech speed, 0.25–4 |
-| `OMNIVOICE_T_SHIFT` | `0.1` | Diffusion time shift, 0–1 |
-| `OMNIVOICE_FULL_TEXT_CHARS` | `100` | Complete-request piece limit, 20–500 |
-| `OMNIVOICE_FIRST_STREAM_CHARS` | `100` | First streamed piece limit, 20–500 |
-| `OMNIVOICE_STREAM_CHARS` | `100` | Subsequent streamed piece limit, 20–500 |
-| `OMNIVOICE_LOG_LEVEL` | `INFO` | Wrapper threshold: DEBUG, INFO, WARNING, ERROR, CRITICAL (case-insensitive). TrueNAS UI defaults to WARNING. Also available as `--log-level`; library stdout/progress output is separate. |
-| `OMNIVOICE_INTER_CHUNK_SILENCE` | `0.15` | Silence between pieces in seconds, 0–2 |
+| `OMNIVOICE_DEVICE` | `cpu` | CPU or `cuda`; assign a GPU separately |
+| `OMNIVOICE_MODEL` | `k2-fsa/OmniVoice` | Compatible model ID or local directory |
+| `OMNIVOICE_LANGUAGE` | `English` | Synthesis language |
+| `OMNIVOICE_LANGUAGE_CODE` | `en` | Matching BCP 47 code advertised to HA |
+| `OMNIVOICE_VOICE` | `example` without manual reference/design | Friendly voice name |
+| `OMNIVOICE_VOICES_DIR` | `/data/voices` | Paired WAV/TXT folder |
+| `OMNIVOICE_REF_AUDIO` | empty | Advanced manual reference WAV path |
+| `OMNIVOICE_REF_TEXT` | empty | Exact transcript, required with manual WAV |
+| `OMNIVOICE_INSTRUCT` | empty | Supported design tags; leave empty for a reference voice |
+| `OMNIVOICE_NUM_STEP` | `32` | Steps, 1–100; fewer trade quality for latency |
+| `OMNIVOICE_GUIDANCE_SCALE` | `2.0` | Guidance, 0–10; higher is not always better |
+| `OMNIVOICE_SPEED` | `1.0` | Speech speed, 0.25–4; above 1 is faster |
+| `OMNIVOICE_T_SHIFT` | `0.1` | Diffusion time shift, 0–1; advanced tuning |
+| `OMNIVOICE_FULL_TEXT_CHARS` | `100` | Complete-request chunk target, 20–500 characters |
+| `OMNIVOICE_FIRST_STREAM_CHARS` | `100` | First streamed chunk target, 20–500 characters |
+| `OMNIVOICE_STREAM_CHARS` | `100` | Subsequent streamed chunk target, 20–500 characters |
+| `OMNIVOICE_INTER_CHUNK_SILENCE` | `0.15` | Pause between pieces, 0–2 seconds |
+| `OMNIVOICE_AUDIO_PACKET_BYTES` | `8192` | Even network packet size, 1024–65536 bytes |
+| `OMNIVOICE_LOG_LEVEL` | `INFO`; catalog `WARNING` | DEBUG, INFO, WARNING, ERROR, CRITICAL; third-party output is separate |
+| `OMNIVOICE_FLASHINFER` | `false` | Fused GPU operations and packed attention; CUDA only |
+| `OMNIVOICE_CUDA_GRAPH` | `false` | GPU capture/replay; requires FlashInfer |
+| `OMNIVOICE_CUDA_GRAPH_CACHE_SIZE` | `4` | Maximum cached shapes, 1–16; bounds VRAM growth |
 
-For a reference voice, place a WAV at `data/voices/reference.wav`, set
-`OMNIVOICE_REF_AUDIO=/data/voices/reference.wav`, and supply its transcript. Both
-settings must be provided together. Reference recordings and transcripts stay in
-your installation and are not included in the image or this repository. Use
-recordings you have permission to use.
+Smaller chunks can reduce first-audio latency but affect prosody and pauses.
+Packet size controls transport framing, not model generation. Benchmark FlashInfer
+and graphs with your voice/GPU; initial compilation or capture can be slower than
+warm requests. More cached graphs use more VRAM.
 
-Voice-design tags must come from OmniVoice's supported set. Use English tags
-separated by comma and space, or Chinese tags separated by a full-width comma;
-do not mix the two. The TrueNAS field lists and validates the supported tags.
-For example, `male, british accent, low pitch` is valid, while a sentence such as
-“a calm, clear speaking voice” is not. The catalogue also derives CPU thread
-counts from the CPU resource limit, avoiding excessive thread contention.
+`HF_HOME`, `TORCH_HOME`, and `XDG_CACHE_HOME` are fixed at `/data/cache` in the image.
+Choose the persistent storage backing `/data` rather than exposing these paths as
+settings. Voice files and caches survive container replacement.
 
-Eight steps and guidance `1.2` were used for the original Tesla P40 deployment.
-Lower step counts can improve latency at the expense of quality. Splitting
-short pieces also affects prosody; tune against your own text and voice.
-
-## Diagnostics and updates
+## Build and validate
 
 ```sh
-# Run these on the Docker host, using your published port:
-python3 test_wyoming.py --port 10200 --synthesize
-python3 test_wyoming.py --port 10200 --synthesize --stream
+docker build -t ghcr.io/valentinealan/wyoming-omnivoice:1.1.0 .
+python -m pip install -r requirements-test.txt
+python -m unittest discover -s tests -v
 ```
 
-`check_gpu.py` is specifically a Tesla P40 compatibility test, including CUDA
-matrix multiplication and attention. Run it inside the image with the GPU
-assigned. Tests under `tests/` exercise protocol behavior without downloading
-weights; see [CONTRIBUTING.md](CONTRIBUTING.md).
-
-Before updating, snapshot or back up the data dataset and record the current
-image tag. Pull a new versioned tag, recreate the container, and run both speech
-tests. Revert the tag if needed. Do not delete the model cache or reference audio
-as part of a routine image update. The legacy private three-image build and SCP
-workflow are not required for community installations.
-
-If startup fails, check dataset permissions, free memory, model download access,
-and GPU assignment. CUDA architecture errors usually indicate incompatible
-PyTorch wheels. Do not install arbitrary newer Torch wheels inside the container.
-
-The service accepts up to 16 connections, limits frames to 64 KiB and requests to
-10,000 text characters, and closes idle connections after five minutes. It has
-no authentication or TLS: keep the port on a trusted LAN. See [SECURITY.md](SECURITY.md).
-
-## License and attribution
-
-The wrapper is Apache-2.0 licensed. OmniVoice, Wyoming, PyTorch, CUDA components,
-and model weights retain their respective licenses. See [LICENSE](LICENSE) and
-[NOTICE](NOTICE). This project is independently maintained and is not an official
-TrueNAS or k2-fsa release.
+See `VALIDATION.md` and the proposed catalog definition in `truenas/`.
+The wrapper is Apache-2.0 licensed. Dependencies retain their upstream licenses;
+see `NOTICE` and `voices/README.md`.

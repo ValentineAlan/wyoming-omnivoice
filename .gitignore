@@ -5,6 +5,7 @@ __pycache__/
 .env
 data/
 *.wav
+!voices/example_reference.wav
 *.mp3
 *.tar
 *.tar.gz

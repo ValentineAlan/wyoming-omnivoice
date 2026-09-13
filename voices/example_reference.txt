@@ -1,0 +1,1 @@
+This is a sample voice for your home assistant, ready to help you play music, check the weather, and manage everyday tasks around your home.

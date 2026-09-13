@@ -4,11 +4,11 @@ import torch
 import torch.nn.functional as F
 import torchaudio
 
-assert torch.__version__ == '2.8.0+cu126', torch.__version__
-assert torchaudio.__version__ == '2.8.0+cu126', torchaudio.__version__
-assert torch.version.cuda == '12.6'
+assert torch.__version__ == '2.14.0+cu130', torch.__version__
+assert torchaudio.__version__ == '2.11.0+cu130', torchaudio.__version__
+assert torch.version.cuda == '13.0'
 assert torch.cuda.is_available()
-assert torch.cuda.get_device_capability(0) == (6, 1)
+assert torch.cuda.get_device_capability(0) >= (7, 5)
 for dtype in (torch.float32, torch.float16):
     x = torch.randn((32, 32), device='cuda', dtype=dtype)
     assert torch.isfinite(x @ x.T).all()

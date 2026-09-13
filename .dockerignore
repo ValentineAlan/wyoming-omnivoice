@@ -1,6 +1,10 @@
 *
 !Dockerfile
+!constraints.txt
 !requirements.lock
-!p40-constraints.txt
 !wyoming_omnivoice.py
+!voice_files.py
+!acceleration.py
 !healthcheck.py
+!voices/
+!voices/**

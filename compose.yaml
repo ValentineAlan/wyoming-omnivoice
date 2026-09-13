@@ -1,6 +1,6 @@
 services:
   wyoming-omnivoice:
-    image: ghcr.io/valentinealan/wyoming-omnivoice:1.0.0
+    image: ghcr.io/valentinealan/wyoming-omnivoice:1.1.0
     user: "568:568"
     init: true
     restart: unless-stopped
@@ -10,6 +10,8 @@ services:
       OMNIVOICE_DEVICE: cpu
       OMNIVOICE_LANGUAGE: English
       OMNIVOICE_LANGUAGE_CODE: en
+      OMNIVOICE_VOICE: example
+      OMNIVOICE_LOG_LEVEL: WARNING
     volumes:
       - ./data:/data
     cap_drop: [ALL]

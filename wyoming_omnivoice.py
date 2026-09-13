@@ -9,6 +9,7 @@ import math
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
+from voice_files import resolve_voice, seed_example
 
 from wyoming.audio import AudioChunk, AudioStart, AudioStop
 from wyoming.event import Event
@@ -16,7 +17,7 @@ from wyoming.info import Attribution, Describe, Info, TtsProgram, TtsVoice
 from wyoming.server import AsyncEventHandler, AsyncTcpServer
 from wyoming.tts import Synthesize, SynthesizeChunk, SynthesizeStart, SynthesizeStop, SynthesizeStopped
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 LOG = logging.getLogger("wyoming_omnivoice")
 MAX_TEXT = 10000
 MAX_FRAME = 65536
@@ -57,6 +58,9 @@ class Engine:
             args.model, device_map=args.device,
             dtype=torch.float16 if args.device == "cuda" else torch.float32,
         )
+        if args.flashinfer:
+            from acceleration import enable_flashinfer
+            enable_flashinfer(self.model, args.cuda_graph, args.cuda_graph_cache_size)
         self.rate = self.model.sampling_rate
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="omnivoice")
         self.lock = asyncio.Lock()
@@ -159,9 +163,9 @@ class Handler(AsyncEventHandler):
             raise ValueError("Request text too long")
 
     async def send_pcm(self, pcm):
-        for offset in range(0, len(pcm), 8192):
+        for offset in range(0, len(pcm), self.args.audio_packet_bytes):
             await self.write_event(AudioChunk(
-                rate=self.engine.rate, width=2, channels=1, audio=pcm[offset:offset + 8192],
+                rate=self.engine.rate, width=2, channels=1, audio=pcm[offset:offset + self.args.audio_packet_bytes],
             ).event())
 
     async def piece(self, text):
@@ -251,6 +255,7 @@ def parse_args(argv=None):
         ("voice-ref", "REF_AUDIO", ""), ("ref-text", "REF_TEXT", ""),
         ("instruct", "INSTRUCT", ""), ("language", "LANGUAGE", "English"),
         ("language-code", "LANGUAGE_CODE", "en"),
+        ("voice", "VOICE", ""), ("voices-dir", "VOICES_DIR", "/data/voices"),
     ]:
         p.add_argument("--" + name, default=os.environ.get("OMNIVOICE_" + env, default))
     for name, env, default, typ, low, high in [
@@ -262,6 +267,7 @@ def parse_args(argv=None):
         ("full-text-chars", "FULL_TEXT_CHARS", 100, int, 20, 500),
         ("first-stream-chars", "FIRST_STREAM_CHARS", 100, int, 20, 500),
         ("stream-chars", "STREAM_CHARS", 100, int, 20, 500),
+        ("audio-packet-bytes", "AUDIO_PACKET_BYTES", 8192, int, 1024, 65536),
     ]:
         def bounded(value, typ=typ, low=low, high=high):
             result = typ(value)
@@ -269,21 +275,49 @@ def parse_args(argv=None):
                 raise argparse.ArgumentTypeError(f"Expected {low} through {high}")
             return result
         p.add_argument("--" + name, type=bounded, default=str(os.environ.get("OMNIVOICE_" + env, default)))
+    def boolean(value):
+        if value.lower() in ("true", "1", "yes", "on"):
+            return True
+        if value.lower() in ("false", "0", "no", "off"):
+            return False
+        raise argparse.ArgumentTypeError("Expected true or false")
+    p.add_argument("--flashinfer", type=boolean, default=os.environ.get("OMNIVOICE_FLASHINFER", "false"))
+    p.add_argument("--cuda-graph", type=boolean, default=os.environ.get("OMNIVOICE_CUDA_GRAPH", "false"))
+    p.add_argument("--cuda-graph-cache-size", type=int, default=os.environ.get("OMNIVOICE_CUDA_GRAPH_CACHE_SIZE", "4"))
     a = p.parse_args(argv)
     if a.device not in ("cpu", "cuda"):
         p.error("--device must be cpu or cuda")
     if not 1 <= a.port <= 65535:
         p.error("--port must be between 1 and 65535")
-    if a.voice_ref and not os.path.isfile(a.voice_ref):
+    if a.flashinfer and a.device != "cuda":
+        p.error("FlashInfer requires --device cuda")
+    if a.cuda_graph and not a.flashinfer:
+        p.error("CUDA graphs require FlashInfer")
+    if not 1 <= a.cuda_graph_cache_size <= 16:
+        p.error("CUDA graph cache size must be between 1 and 16")
+    if a.audio_packet_bytes % 2:
+        p.error("Audio packet size must be an even number of bytes")
+    if not a.voice and a.voice_ref and not os.path.isfile(a.voice_ref):
         p.error("Reference audio file does not exist")
-    if bool(a.voice_ref) != bool(a.ref_text):
+    if not a.voice and bool(a.voice_ref) != bool(a.ref_text):
         p.error("Reference audio and its transcript must be supplied together")
     return a
+
+
+def configure_voice(args):
+    # Resolve files at startup, keeping argument parsing and --help side-effect free.
+    if not args.voice and not args.voice_ref and not args.instruct:
+        args.voice = "example"
+    if args.voice:
+        if args.voice == "example":
+            seed_example(args.voices_dir)
+        args.voice_ref, args.ref_text = resolve_voice(args.voices_dir, args.voice)
 
 
 async def main():
     args = parse_args()
     logging.basicConfig(level=args.log_level, format="%(asctime)s %(levelname)s %(message)s")
+    configure_voice(args)
     engine = Engine(args)
     server = AsyncTcpServer(args.host, args.port)
     active = set()
