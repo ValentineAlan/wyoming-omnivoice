@@ -1,3 +1,5 @@
+# Keep the large, tested CUDA/OmniVoice dependency layers before wrapper COPYs.
+# The publishing workflow reuses these layers from the GHCR registry cache.
 FROM python:3.12-slim-bookworm
 ENV PIP_NO_CACHE_DIR=1 PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
