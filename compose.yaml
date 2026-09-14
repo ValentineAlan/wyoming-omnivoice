@@ -1,11 +1,11 @@
 services:
   wyoming-omnivoice:
-    image: ghcr.io/valentinealan/wyoming-omnivoice:1.1.0
+    image: ${OMNIVOICE_IMAGE:-ghcr.io/valentinealan/wyoming-omnivoice:1.1.0}
     user: "568:568"
     init: true
     restart: unless-stopped
     ports:
-      - "10200:10200"
+      - "${OMNIVOICE_BIND_IP:-0.0.0.0}:${OMNIVOICE_PORT:-10200}:10200"
     environment:
       OMNIVOICE_DEVICE: cpu
       OMNIVOICE_LANGUAGE: English
@@ -13,6 +13,6 @@ services:
       OMNIVOICE_VOICE: example
       OMNIVOICE_LOG_LEVEL: WARNING
     volumes:
-      - ./data:/data
+      - ${OMNIVOICE_DATA_DIR:-./data}:/data
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
