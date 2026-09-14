@@ -7,6 +7,13 @@ service for Home Assistant. Supports complete and streamed text requests, named
 reference voices, CPU inference, and optional NVIDIA acceleration.
 **TrueNAS catalog inclusion is pending review; this is an independent community project.**
 
+OmniVoice runs on an external Docker host with NVIDIA/CUDA support, such as
+TrueNAS or a Linux VM. Home Assistant OS connects over Wyoming TCP; the model
+and CUDA stack do not run inside HAOS. TrueNAS packaging is optional.
+
+See [release and update guidance](docs/releasing.md) for GHCR tags, large-image
+build strategy, publishing, upgrades and rollback.
+
 ## Requirements and versions
 
 Use an x86-64 Linux Docker host. Allow at least 8 GB system memory and 20 GB app
@@ -34,10 +41,36 @@ builds use `requirements.lock` to pin the tested environment. Model weights down
 Create a persistent data directory writable by UID/GID 568:
 
 ```sh
+git clone https://github.com/ValentineAlan/wyoming-omnivoice.git
+cd wyoming-omnivoice
+cp .env.example .env
+mkdir -p data
+sudo chown 568:568 data
 docker compose up -d
 # NVIDIA GPU:
 docker compose -f compose.yaml -f compose.nvidia.yaml up -d
 ```
+
+Choose either the CPU command or the NVIDIA command. GPU deployments need the
+NVIDIA driver and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+configured on the Docker host. The GPU overlay reserves one GPU; replace `count: 1`
+with `device_ids: ["GPU-your-uuid"]` to select a particular card. See
+[Docker GPU reservations](https://docs.docker.com/compose/how-tos/gpu-support/).
+Set the data path, host port and optional LAN bind address in `.env` before starting.
+On TrueNAS, grant UID/GID 568 access through the dataset permissions UI.
+
+In Home Assistant:
+
+1. Open **Settings → Devices & services → Add integration → Wyoming Protocol**.
+2. Enter the external Docker host's LAN IP and published port (default `10200`).
+   Do not enter the HAOS VM address or `localhost`.
+3. Open **Settings → Voice assistants**, edit the desired assistant, and select
+   OmniVoice as its text-to-speech provider with the advertised language/voice.
+4. Test speech, then check `docker compose logs --tail=100` if it fails.
+
+The [Wyoming integration](https://www.home-assistant.io/integrations/wyoming/)
+supports external servers. Allow the published TCP port from Home Assistant
+through any host/VLAN firewall. Do not forward it from the Internet.
 
 Until catalog approval, use TrueNAS **Apps → Discover Apps → Custom App → Install
 via YAML**, based on `compose.yaml`. Replace `./data` with an absolute dataset path.
