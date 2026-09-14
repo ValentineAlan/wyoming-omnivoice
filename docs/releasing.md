@@ -25,8 +25,9 @@ cache still needs substantial disk and download capacity. If a future dependency
 update exceeds runner capacity, use an adequately sized isolated Linux runner;
 do not run untrusted pull requests on the production TrueNAS host. Builds target
 `linux/amd64`; building/import checks do not require a GPU. Actual synthesis testing
-does. Do not replace the current CUDA 13 stack with the legacy P40 CUDA 12.6 build:
-those support different GPUs. Keep legacy releases separate.
+does. The current GPU runtime uses CUDA 13.0 and supports Turing-or-newer NVIDIA
+hardware with a compatible R580-or-newer driver. Historical releases are not the
+recommended installation target; use the current release and its hardware requirements.
 
 ## Publish
 
