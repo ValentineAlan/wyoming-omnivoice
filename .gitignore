@@ -3,6 +3,10 @@ __pycache__/
 .venv/
 .pytest_cache/
 .env
+.env.*
+!.env.example
+*.pem
+*.key
 data/
 *.wav
 !voices/example_reference.wav
