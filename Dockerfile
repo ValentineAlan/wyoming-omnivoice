@@ -28,6 +28,9 @@ RUN groupadd --gid 568 apps && useradd --uid 568 --gid 568 --no-create-home --ho
     && mkdir -p /data/cache /data/voices /app && chown -R 568:568 /data
 COPY wyoming_omnivoice.py voice_files.py acceleration.py healthcheck.py /app/
 COPY voices/ /opt/omnivoice/example-voices/
+LABEL org.opencontainers.image.source="https://github.com/ValentineAlan/wyoming-omnivoice"
+COPY app-release.json /usr/local/share/app-release.json
+COPY CHANGELOG.md /usr/local/share/app-changelog.md
 USER 568:568
 WORKDIR /app
 EXPOSE 10200

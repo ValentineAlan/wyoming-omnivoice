@@ -1,0 +1,21 @@
+{
+  "wyoming-omnivoice": {
+    "name": "Wyoming OmniVoice",
+    "services": {
+      "wyoming-omnivoice": {
+        "repository": "ValentineAlan/wyoming-omnivoice",
+        "version_files": ["/app/wyoming_omnivoice.py"],
+        "known_images": {
+          "sha256:a357191be32510a1acc7f95994f949556084c410e6f163be8481f02d0532f5d3": {"version": "0.1.7"}
+        }
+      }
+    }
+  },
+  "ebay-hunter-stack": {
+    "name": "Laptop Lander / eBay Laptop Hunter",
+    "services": {
+      "hunter": {"repository": "ValentineAlan/ebay-laptop-hunter", "version_files": ["/app/app.py"]},
+      "sid-helper": {"repository": "ValentineAlan/ebay-laptop-hunter", "no_version": true}
+    }
+  }
+}

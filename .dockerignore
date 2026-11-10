@@ -8,3 +8,5 @@
 !healthcheck.py
 !voices/
 !voices/**
+!app-release.json
+!CHANGELOG.md
