@@ -4,6 +4,10 @@ Release notes are matched to the deployed application version, not the TrueNAS i
 
 ## Unreleased
 
+- Fix custom deployment reports on large NAS inventories by filtering app IDs and merging JSON files instead of passing the full inventory as a command argument.
+- Reject invalid report inventories rather than sending an empty success summary; fix custom target-version formatting.
+- Make full-report tests use synthetic deployment metadata and notes, including an inventory over 200 KB; all 12 reporting tests pass.
+
 - Add custom-app release-note reporting for the TrueNAS daily update email, using observed application versions and image IDs.
 - Detect deployments made between nightly runs and report service changes separately.
 - Add formatted HTML reports and explicit warnings for unchanged images still flagged as outdated.

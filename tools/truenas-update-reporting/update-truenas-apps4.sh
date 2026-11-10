@@ -520,9 +520,16 @@ UPDATE_COUNT="$(jq 'length' <<<"$UPDATES")"
 # reports an already installed change; it does not redeploy it a second time.
 CHANGED_CUSTOM="$(python3 "$HELPER" changed)" || CHANGED_CUSTOM='[]'
 if jq -e 'length > 0' >/dev/null <<<"$CHANGED_CUSTOM"; then
-  ALL_APPS="$(midclt call app.query)"
-  UPDATES="$(jq -cn --argjson pending "$UPDATES" --argjson all "$ALL_APPS" --argjson changed "$CHANGED_CUSTOM" \
-    '$pending + [$all[] | .id as $id | select($changed | index($id))] | unique_by(.id)')"
+  # Keep the inventory out of command arguments: a populated NAS can exceed
+  # Linux's per-argument size limit even when only one app changed.
+  printf '%s\n' "$UPDATES" >"$RUN_METADATA/pending.json"
+  CHANGED_FILTER="$(jq -cn --argjson ids "$CHANGED_CUSTOM" '[["id","in",$ids]]')" || exit 1
+  midclt call app.query "$CHANGED_FILTER" >"$RUN_METADATA/changed.json" || exit 1
+  UPDATES="$(jq -s 'add | unique_by(.id)' "$RUN_METADATA/pending.json" "$RUN_METADATA/changed.json")" || exit 1
+fi
+if ! jq -e 'type == "array"' >/dev/null 2>&1 <<<"$UPDATES"; then
+  echo "Could not assemble a valid list of updates and deployed changes." >&2
+  exit 1
 fi
 UPDATE_COUNT="$(jq 'length' <<<"$UPDATES")"
 
@@ -581,7 +588,7 @@ while IFS= read -r APP_JSON; do
   )"
 
   if [ "$CUSTOM" = true ]; then
-    EXPECTED_VERSION="$(jq -r '.upgrade_human_version // .latest_human_version // "unchanged"' <<<"${SUMMARY:-{}}" 2>/dev/null || echo unchanged)"
+    EXPECTED_VERSION="$(jq -r '.upgrade_human_version // .latest_human_version // "unchanged"' <<<"${SUMMARY:-null}" 2>/dev/null || echo unchanged)"
     CHANGELOG="Custom application notes are resolved from observed deployed versions below."
   elif [ -n "$SUMMARY" ] &&
      jq -e 'type == "object"' >/dev/null 2>&1 <<<"$SUMMARY"; then

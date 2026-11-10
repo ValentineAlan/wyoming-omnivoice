@@ -19,7 +19,11 @@ state=json.loads((root/'apps.json').read_text())
 with (root/'calls.log').open('a') as f:f.write(method+' '+(args[0] if args and method!='mail.send' else '')+'\\n')
 if method=='catalog.sync': print('null')
 elif method=='app.query':
- print(json.dumps([x for x in state if x['upgrade_available']] if args else state))
+ if not args:result=state
+ elif json.loads(args[0])[0][0]=='id':
+  ids=json.loads(args[0])[0][2];result=[x for x in state if x['id'] in ids]
+ else:result=[x for x in state if x['upgrade_available']]
+ print(json.dumps(result))
 elif method=='app.get_instance':print(json.dumps(next(x for x in state if x['id']==args[0])))
 elif method=='app.upgrade_summary':print(json.dumps({'upgrade_human_version':'1.2.0_2','latest_human_version':'1.2.0_2','available_versions_for_upgrade':[]}))
 elif method in ('app.start','app.stop','app.upgrade'):
@@ -44,6 +48,23 @@ class ReportIntegration(unittest.TestCase):
             fake = bin_dir / 'midclt'; fake.write_text(FAKE_MIDCLT); fake.chmod(0o700)
             for name in ['custom_app_changelog.py','custom-app-changelogs.json']:
                 (root/name).write_bytes((ROOT/name).read_bytes())
+            # Fully synthetic provenance and notes: tests must not depend on the
+            # production version, Docker, GitHub availability, or NAS contents.
+            fixture={'ebay-hunter-stack':{'name':'Hunter','services':{'hunter':{
+                'image':'example/hunter:0.10.64','image_id':'sha256:fixture',
+                'repository':'ValentineAlan/ebay-laptop-hunter','version':'0.10.64',
+                'branch':'main','changelog_path':'CHANGELOG.md'}}}}
+            (root/'capture-fixture.json').write_text(json.dumps(fixture))
+            injection='''
+def capture(app):
+    return read_json(ROOT / 'capture-fixture.json')[app]
+def fixture_fetch(url):
+    return '# Changelog\\n\\n## 0.10.64\\n\\n- Add crawlable buying categories.\\n\\n## 0.10.63\\n\\n- Previous release.\\n'
+release_notes.__defaults__ = (fixture_fetch,)
+report.__defaults__ = (fixture_fetch,)
+'''
+            helper=root/'custom_app_changelog.py'
+            helper.write_text(helper.read_text().replace("if __name__ == '__main__':", injection+"\nif __name__ == '__main__':"))
             # Limit the integration fixture to Hunter; other native app logic is
             # covered by a synthetic packaging-only example below.
             config=json.loads((root/'custom-app-changelogs.json').read_text())
@@ -61,6 +82,12 @@ class ReportIntegration(unittest.TestCase):
                 apps.append({'id':'native-example','name':'native-example','custom_app':False,
                              'state':'STOPPED','version':'1','human_version':'1.2.0_1','upgrade_available':True,
                              'metadata':{'title':'Native','name':'native','app_version':'1.2.0'}})
+            if manual:
+                # Full app.query output must not be passed as a single --argjson
+                # argument. Real inventories can exceed Linux MAX_ARG_STRLEN.
+                apps.append({'id':'unrelated-large-app','name':'unrelated-large-app','custom_app':False,
+                             'state':'RUNNING','version':'1','human_version':'1','upgrade_available':False,
+                             'metadata':{'description':'x'*200000}})
             (root/'apps.json').write_text(json.dumps(apps))
             script=(ROOT/'update-truenas-apps4.sh').read_text()
             script=script.replace('HELPER_DIR="/mnt/Decathlon/appdata/truenas-update-reporting"', 'HELPER_DIR="'+tmp+'"')
@@ -75,6 +102,7 @@ class ReportIntegration(unittest.TestCase):
             subprocess.run(['bash',str(root/'run.sh')],env=env,check=True,timeout=150)
             payload=json.loads((root/'email.json').read_text())
             self.assertIn('<h1>TrueNAS app update report</h1>',payload['html'])
+            self.assertNotIn('1.2.0_2\nunchanged',payload['text'])
             calls=(root/'calls.log').read_text()
             if manual:
                 self.assertNotIn('app.upgrade ',calls)
