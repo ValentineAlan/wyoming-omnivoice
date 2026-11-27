@@ -19,3 +19,9 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python tools/check_changelog.py "$BASE_SHA"
+      - name: Validate updater shell syntax
+        run: bash -n tools/truenas-update-reporting/update-truenas-apps4.sh
+      - name: Install existing report formatter dependency
+        run: python -m pip install Markdown==3.7
+      - name: Test updater and changelog reporting
+        run: python -B -m unittest discover -s tools/truenas-update-reporting -p 'test_*.py'

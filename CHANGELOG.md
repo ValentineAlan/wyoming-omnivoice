@@ -4,6 +4,10 @@ Release notes are matched to the deployed application version, not the TrueNAS i
 
 ## Unreleased
 
+- Fix the nightly updater's opt-in GitHub source path: discover versioned releases independently of TrueNAS image flags, build a pinned commit, and verify the running version and HTTP health before reporting success.
+- Update only the mapped Hunter service, preserving Chromium, the SID helper, runtime settings and data mounts; retain rollback images and deployment receipts, and restore the old image if verification fails.
+- Add `--app APP_ID` for scoped cron-script runs. Keep source-update operational changes separate from the OmniVoice application release version.
+- Validation: 21 updater/reporting tests pass, including source discovery without a TrueNAS flag, failure rollback and unchanged runtime settings; add these checks and shell syntax validation to CI.
 - Fix custom deployment reports on large NAS inventories by filtering app IDs and merging JSON files instead of passing the full inventory as a command argument.
 - Reject invalid report inventories rather than sending an empty success summary; fix custom target-version formatting.
 - Make full-report tests use synthetic deployment metadata and notes, including an inventory over 200 KB; all 12 reporting tests pass.

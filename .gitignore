@@ -13,3 +13,6 @@ data/
 *.mp3
 *.tar
 *.tar.gz
+tools/truenas-update-reporting/deployments/
+tools/truenas-update-reporting/last-report.md
+tools/truenas-update-reporting/last-reported-custom-apps.json

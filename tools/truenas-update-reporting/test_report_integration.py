@@ -41,7 +41,7 @@ else:raise SystemExit('Unexpected method '+method)
 
 
 class ReportIntegration(unittest.TestCase):
-    def run_case(self, manual=False, fail=False):
+    def run_case(self, manual=False, fail=False, source=False):
         with tempfile.TemporaryDirectory(prefix='report-test-', dir=ROOT) as tmp:
             root = Path(tmp)
             bin_dir = root / 'bin'; bin_dir.mkdir()
@@ -55,11 +55,23 @@ class ReportIntegration(unittest.TestCase):
                 'repository':'ValentineAlan/ebay-laptop-hunter','version':'0.10.64',
                 'branch':'main','changelog_path':'CHANGELOG.md'}}}}
             (root/'capture-fixture.json').write_text(json.dumps(fixture))
+            if source:
+                (root/'github_app_update.py').write_text('''import sys,json
+from pathlib import Path
+root=Path(__file__).parent
+if sys.argv[1]=='plan':
+ print(json.dumps({'ebay-hunter-stack':{'pending':True}}))
+else:
+ state=json.loads((root/'capture-fixture.json').read_text())
+ state['ebay-hunter-stack']['services']['hunter'].update(version='0.10.65',image_id='sha256:new')
+ (root/'capture-fixture.json').write_text(json.dumps(state))
+ with (root/'calls.log').open('a') as f:f.write('source.apply ebay-hunter-stack\\n')
+''')
             injection='''
 def capture(app):
     return read_json(ROOT / 'capture-fixture.json')[app]
 def fixture_fetch(url):
-    return '# Changelog\\n\\n## 0.10.64\\n\\n- Add crawlable buying categories.\\n\\n## 0.10.63\\n\\n- Previous release.\\n'
+    return '# Changelog\\n\\n## 0.10.65\\n\\n- New source release.\\n\\n## 0.10.64\\n\\n- Add crawlable buying categories.\\n\\n## 0.10.63\\n\\n- Previous release.\\n'
 release_notes.__defaults__ = (fixture_fetch,)
 report.__defaults__ = (fixture_fetch,)
 '''
@@ -77,8 +89,8 @@ report.__defaults__ = (fixture_fetch,)
                 (root/'last-reported-custom-apps.json').write_text(json.dumps(state))
             apps=[{'id':'ebay-hunter-stack','name':'ebay-hunter-stack','custom_app':True,
                    'state':'STOPPED' if fail else 'RUNNING','version':'1.0.0','human_version':'1.0.0_custom',
-                   'upgrade_available':not manual,'metadata':{'title':'Custom App'}}]
-            if not manual and not fail:
+                   'upgrade_available':not manual and not source,'metadata':{'title':'Custom App'}}]
+            if not manual and not fail and not source:
                 apps.append({'id':'native-example','name':'native-example','custom_app':False,
                              'state':'STOPPED','version':'1','human_version':'1.2.0_1','upgrade_available':True,
                              'metadata':{'title':'Native','name':'native','app_version':'1.2.0'}})
@@ -104,7 +116,13 @@ report.__defaults__ = (fixture_fetch,)
             self.assertIn('<h1>TrueNAS app update report</h1>',payload['html'])
             self.assertNotIn('1.2.0_2\nunchanged',payload['text'])
             calls=(root/'calls.log').read_text()
-            if manual:
+            if source:
+                self.assertIn('source.apply ebay-hunter-stack',calls)
+                self.assertNotIn('app.upgrade ',calls)
+                self.assertIn('GitHub application release installed and verified',payload['text'])
+                self.assertIn('0.10.64 → 0.10.65',payload['text'])
+                self.assertIn('New source release',payload['text'])
+            elif manual:
                 self.assertNotIn('app.upgrade ',calls)
                 self.assertIn('Previously deployed change detected',payload['text'])
                 self.assertIn('0.10.63 → 0.10.64',payload['text'])
@@ -122,6 +140,7 @@ report.__defaults__ = (fixture_fetch,)
     def test_pending_custom_and_native(self): self.run_case()
     def test_manual_deployment_without_pending_update(self): self.run_case(manual=True)
     def test_failure_restores_stopped_state(self): self.run_case(fail=True)
+    def test_source_release_without_truenas_image_flag(self): self.run_case(source=True)
 
 
 if __name__=='__main__':unittest.main()

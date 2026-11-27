@@ -13,6 +13,12 @@
   },
   "ebay-hunter-stack": {
     "name": "Laptop Lander / eBay Laptop Hunter",
+    "source_update": {
+      "service": "hunter",
+      "branch": "main",
+      "dockerfile": "Dockerfile",
+      "health_url": "http://127.0.0.1:8080/healthz"
+    },
     "services": {
       "hunter": {"repository": "ValentineAlan/ebay-laptop-hunter", "version_files": ["/app/app.py"]},
       "sid-helper": {"repository": "ValentineAlan/ebay-laptop-hunter", "no_version": true}

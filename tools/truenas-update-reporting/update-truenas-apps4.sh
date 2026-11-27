@@ -7,6 +7,16 @@ HELPER="$HELPER_DIR/custom_app_changelog.py"
 RUN_METADATA="$(mktemp -d)"
 SUCCESS_APPS="$(mktemp)"
 LAST_REPORT="$HELPER_DIR/last-report.md"
+SOURCE_UPDATER="$HELPER_DIR/github_app_update.py"
+SOURCE_PLANS="$RUN_METADATA/github-updates.json"
+ONLY_APP=""
+if [ "$#" -gt 0 ]; then
+  if [ "$#" -ne 2 ] || [ "$1" != "--app" ]; then
+    echo "Usage: $0 [--app APP_ID]" >&2
+    exit 2
+  fi
+  ONLY_APP="$2"
+fi
 
 is_custom_app() {
   jq -e '.custom_app == true or .metadata.name == "ix-app"' >/dev/null <<<"$1"
@@ -483,8 +493,12 @@ upgrade_preserving_state() {
   esac
 
   if [ "$rc" -eq 0 ]; then
-    midclt call --job app.upgrade "$app" \
-      '{"app_version":"latest","snapshot_hostpaths":false}' || rc=1
+    if jq -e --arg app "$app" 'has($app)' "$SOURCE_PLANS" >/dev/null; then
+      python3 "$SOURCE_UPDATER" apply "$SOURCE_PLANS" "$app" || rc=1
+    else
+      midclt call --job app.upgrade "$app" \
+        '{"app_version":"latest","snapshot_hostpaths":false}' || rc=1
+    fi
   fi
 
   if [ -n "$RESTORE_APP" ]; then
@@ -519,6 +533,12 @@ UPDATE_COUNT="$(jq 'length' <<<"$UPDATES")"
 # Include custom applications deployed since the last successful report. This
 # reports an already installed change; it does not redeploy it a second time.
 CHANGED_CUSTOM="$(python3 "$HELPER" changed)" || CHANGED_CUSTOM='[]'
+printf '{}\n' >"$SOURCE_PLANS"
+if [ -f "$SOURCE_UPDATER" ]; then
+  python3 "$SOURCE_UPDATER" plan >"$SOURCE_PLANS" || exit 1
+  SOURCE_PENDING="$(jq -ce 'to_entries | map(select(.value.pending == true) | .key)' "$SOURCE_PLANS")" || exit 1
+  CHANGED_CUSTOM="$(jq -cn --argjson reported "$CHANGED_CUSTOM" --argjson source "$SOURCE_PENDING" '$reported + $source | unique')" || exit 1
+fi
 if jq -e 'length > 0' >/dev/null <<<"$CHANGED_CUSTOM"; then
   # Keep the inventory out of command arguments: a populated NAS can exceed
   # Linux's per-argument size limit even when only one app changed.
@@ -534,6 +554,10 @@ fi
 UPDATE_COUNT="$(jq 'length' <<<"$UPDATES")"
 
 # Do not send an email when no updates are available.
+if [ -n "$ONLY_APP" ]; then
+  UPDATES="$(jq -c --arg app "$ONLY_APP" '[.[] | select(.id == $app)]' <<<"$UPDATES")" || exit 1
+  UPDATE_COUNT="$(jq 'length' <<<"$UPDATES")"
+fi
 if [ "$UPDATE_COUNT" -eq 0 ]; then
   exit 0
 fi
@@ -552,6 +576,10 @@ FAILURE_COUNT=0
 
 while IFS= read -r APP_JSON; do
   APP_ID="$(jq -r '.id' <<<"$APP_JSON")"
+  SOURCE_PENDING=false
+  if jq -e --arg app "$APP_ID" '.[$app].pending == true' "$SOURCE_PLANS" >/dev/null; then
+    SOURCE_PENDING=true
+  fi
 
   CUSTOM=false
   if is_custom_app "$APP_JSON"; then
@@ -629,7 +657,7 @@ while IFS= read -r APP_JSON; do
   } >>"$REPORT_FILE"
 
   # Upgrade the application and wait for the TrueNAS job to complete.
-  if { if jq -e '.upgrade_available == true' >/dev/null <<<"$APP_JSON"; then
+  if { if [ "$SOURCE_PENDING" = true ] || jq -e '.upgrade_available == true' >/dev/null <<<"$APP_JSON"; then
          upgrade_preserving_state "$APP_ID"
        else
          echo "Reporting a deployment since the last email; no update requested."
@@ -657,7 +685,11 @@ while IFS= read -r APP_JSON; do
     fi
 
     {
-      if jq -e '.upgrade_available == true' >/dev/null <<<"$APP_JSON"; then
+      if [ "$SOURCE_PENDING" = true ]; then
+        echo "- **Result:** GitHub application release installed and verified"
+      elif jq -e --arg app "$APP_ID" 'has($app)' "$SOURCE_PLANS" >/dev/null && jq -e '.upgrade_available == true' >/dev/null <<<"$APP_JSON"; then
+        echo "- **Result:** GitHub release checked; no newer application release to install"
+      elif jq -e '.upgrade_available == true' >/dev/null <<<"$APP_JSON"; then
         echo "- **Result:** Update command completed successfully"
       else
         echo "- **Result:** Previously deployed change detected; no additional restart"

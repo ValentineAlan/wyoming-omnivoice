@@ -24,6 +24,37 @@ Tracked custom apps deployed manually between nightly runs are included in the
 next report without another restart. A first baseline does not invent prior history.
 GitHub branch changes alone are not evidence of a deployment.
 
+## GitHub-built service updates
+
+An explicit `source_update` mapping opts a service into release discovery. The
+nightly script checks the configured GitHub branch for a newer `app-release.json`
+version and an exact changelog section, even without a TrueNAS image-update flag.
+It pins the resolved commit, builds before restarting, and updates only the mapped
+service with `--no-deps --no-build --pull never`. The original Compose configuration
+remains authoritative. Runtime settings, ports and data mounts must remain equal.
+The observed application version and HTTP health response must both match before
+the report can claim success. Failed verification restores the previous image.
+
+LaptopLander opts in only `hunter`; browser and helper updates are separate work.
+This prevents registry pulls of the local `github-main` tags. A TrueNAS image flag
+may remain for another service; the email continues to expose it. Unknown versions,
+downgrades, missing release notes and source mismatches fail closed. Same-version
+GitHub changes do not trigger a rebuild: runtime changes require a new release.
+
+`deployments/` contains private local receipts with source commit, version, image
+IDs and verified/rollback status. Keep receipts out of GitHub. Version and rollback
+tags are retained on the NAS. The helper does not publish images to a registry.
+
+For a single-app run using the normal lock, stopped-state handling and email flow:
+
+```sh
+bash update-truenas-apps4.sh --app ebay-hunter-stack
+```
+
+Run `python3 -m unittest discover -s . -p 'test_*.py'` and `bash -n
+update-truenas-apps4.sh` before installing script changes. The source updater and
+its mapping must be installed alongside the reporting helper.
+
 ## Files and operation
 
 On this installation, helpers and non-secret repository mappings are in
